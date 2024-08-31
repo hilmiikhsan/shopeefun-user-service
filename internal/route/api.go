@@ -2,17 +2,17 @@ package route
 
 import (
 	"github.com/gofiber/fiber/v2"
+	handlerUser "github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/handler/rest"
 	"github.com/hilmiikhsan/shopeefun-user-service/pkg/response"
 	"github.com/rs/zerolog/log"
 )
 
 func SetupRoutes(app *fiber.App) {
 	var (
-	// googleOauth = integration.NewOauth2googleIntegration()
-	// api = app.Group("/users")
+		api = app.Group("/api/v1")
 	)
 
-	// restUser.NewUserHandler(googleOauth).Register(api)
+	handlerUser.NewUserHandler().Register(api)
 
 	// fallback route
 	app.Use(func(c *fiber.Ctx) error {
