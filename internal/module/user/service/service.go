@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/entity"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/ports"
 	"github.com/hilmiikhsan/shopeefun-user-service/pkg"
 	"github.com/hilmiikhsan/shopeefun-user-service/pkg/errmsg"
+	jwthandler "github.com/hilmiikhsan/shopeefun-user-service/pkg/jwt_handler"
 	"github.com/rs/zerolog/log"
 )
 
@@ -38,4 +40,34 @@ func (s *userService) Register(ctx context.Context, req *entity.RegisterRequest)
 	}
 
 	return result, nil
+}
+
+func (s *userService) Login(ctx context.Context, req *entity.LoginRequest) (*entity.LoginResponse, error) {
+	var res = new(entity.LoginResponse)
+
+	user, err := s.repo.FindByEmail(ctx, req.Email)
+	if err != nil {
+		log.Error().Err(err).Any("payload", req).Msg("service::Login - Failed to find user")
+		return nil, err
+	}
+
+	if !pkg.ComparePassword(user.Password, req.Password) {
+		log.Warn().Any("payload", req).Msg("service::Login - Password not match")
+		return nil, errmsg.NewCustomErrors(401, errmsg.WithMessage("Email atau password salah"))
+	}
+
+	token, err := jwthandler.GenerateTokenString(jwthandler.CostumClaimsPayload{
+		UserId:          user.Id,
+		Role:            user.Role,
+		TokenExpiration: time.Now().Add(time.Hour * 24),
+	})
+	if err != nil {
+		log.Error().Err(err).Any("payload", req).Msg("service::Login - Failed to generate token")
+		return nil, err
+	}
+
+	res.Id = user.Id
+	res.Token = token
+
+	return res, nil
 }

@@ -29,6 +29,7 @@ func NewUserHandler() *userHandler {
 
 func (h *userHandler) Register(router fiber.Router) {
 	router.Post("/register", h.register)
+	router.Post("/login", h.Login)
 }
 
 func (h *userHandler) register(c *fiber.Ctx) error {
@@ -57,4 +58,32 @@ func (h *userHandler) register(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusCreated).JSON(response.Success(res, ""))
+}
+
+func (h *userHandler) Login(c *fiber.Ctx) error {
+	var (
+		req        = new(entity.LoginRequest)
+		ctx        = c.Context()
+		validators = adapter.Adapters.Validator
+	)
+
+	if err := c.BodyParser(req); err != nil {
+		log.Warn().Err(err).Msg("handler::login - Failed to parse request body")
+		return c.Status(fiber.StatusBadRequest).JSON(response.Error(err))
+	}
+
+	if err := validators.Validate(req); err != nil {
+		log.Warn().Err(err).Msg("handler::login - Invalid request body")
+		code, errs := errmsg.Errors(err, req)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	res, err := h.service.Login(ctx, req)
+	if err != nil {
+		log.Error().Err(err).Any("payload", req).Msg("handler::login - Failed to login user")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.Success(res, ""))
 }

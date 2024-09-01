@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/entity"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/ports"
@@ -49,6 +50,22 @@ func (r *userRepository) Register(ctx context.Context, req *entity.RegisterReque
 			log.Error().Err(err).Any("payload", req).Msg("repo::Register - Failed to insert user")
 			return nil, err
 		}
+	}
+
+	return res, nil
+}
+
+func (r *userRepository) FindByEmail(ctx context.Context, email string) (*entity.UserResult, error) {
+	var res = new(entity.UserResult)
+
+	err := r.db.GetContext(ctx, res, r.db.Rebind(queryGetUserByEmail), email)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Warn().Err(err).Str("email", email).Msg("repo::FindByEmail - User not found")
+			return nil, errmsg.NewCustomErrors(400, errmsg.WithMessage("Email atau password salah"))
+		}
+		log.Error().Err(err).Str("email", email).Msg("repo::FindByEmail - Failed to get user")
+		return nil, err
 	}
 
 	return res, nil
