@@ -3,6 +3,7 @@ package rest
 import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/adapter"
+	"github.com/hilmiikhsan/shopeefun-user-service/internal/middleware"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/entity"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/ports"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/repository"
@@ -29,7 +30,8 @@ func NewUserHandler() *userHandler {
 
 func (h *userHandler) Register(router fiber.Router) {
 	router.Post("/register", h.register)
-	router.Post("/login", h.Login)
+	router.Post("/login", h.login)
+	router.Get("/profile", middleware.AuthBearer, h.getProfile)
 }
 
 func (h *userHandler) register(c *fiber.Ctx) error {
@@ -60,7 +62,7 @@ func (h *userHandler) register(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusCreated).JSON(response.Success(res, ""))
 }
 
-func (h *userHandler) Login(c *fiber.Ctx) error {
+func (h *userHandler) login(c *fiber.Ctx) error {
 	var (
 		req        = new(entity.LoginRequest)
 		ctx        = c.Context()
@@ -81,6 +83,25 @@ func (h *userHandler) Login(c *fiber.Ctx) error {
 	res, err := h.service.Login(ctx, req)
 	if err != nil {
 		log.Error().Err(err).Any("payload", req).Msg("handler::login - Failed to login user")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.Success(res, ""))
+}
+
+func (h *userHandler) getProfile(c *fiber.Ctx) error {
+	var (
+		req    = new(entity.GetProfileRequest)
+		ctx    = c.Context()
+		locals = middleware.GetLocals(c)
+	)
+
+	req.UserId = locals.GetUserId()
+
+	res, err := h.service.GetProfile(ctx, req)
+	if err != nil {
+		log.Error().Err(err).Any("payload", req).Msg("handler::getProfile - Failed to get profile")
 		code, errs := errmsg.Errors[error](err)
 		return c.Status(code).JSON(response.Error(errs))
 	}

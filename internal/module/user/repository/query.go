@@ -27,4 +27,15 @@ const (
 		LEFT JOIN roles r ON r.id = u.role_id
 		WHERE u.email = ?
 	`
+
+	queryGetProfile = `
+		SELECT
+			u.id,
+			r.name AS role,
+			u.name,
+			u.email
+		FROM users u
+		LEFT JOIN roles r ON r.id = u.role_id
+		WHERE u.id = ?
+	`
 )

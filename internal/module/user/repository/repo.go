@@ -70,3 +70,20 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*entity
 
 	return res, nil
 }
+
+func (r *userRepository) FindById(ctx context.Context, id string) (*entity.GetProfileResponse, error) {
+	var res = new(entity.GetProfileResponse)
+
+	err := r.db.GetContext(ctx, res, r.db.Rebind(queryGetProfile), id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			log.Warn().Err(err).Str("id", id).Msg("repo::FindById - User not found")
+			return nil, errmsg.NewCustomErrors(400, errmsg.WithMessage("User tidak ditemukan"))
+		}
+
+		log.Error().Err(err).Str("id", id).Msg("repo::FindById - Failed to get user")
+		return nil, err
+	}
+
+	return res, nil
+}

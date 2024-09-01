@@ -22,3 +22,14 @@ type LoginResponse struct {
 	Id    string `json:"id"`
 	Token string `json:"token"`
 }
+
+type GetProfileRequest struct {
+	UserId string `validate:"validate"`
+}
+
+type GetProfileResponse struct {
+	Id    string `json:"id" db:"id"`
+	Name  string `json:"name" db:"name"`
+	Email string `json:"email" db:"email"`
+	Role  string `json:"-" db:"role"`
+}

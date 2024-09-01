@@ -71,3 +71,13 @@ func (s *userService) Login(ctx context.Context, req *entity.LoginRequest) (*ent
 
 	return res, nil
 }
+
+func (s *userService) GetProfile(ctx context.Context, req *entity.GetProfileRequest) (*entity.GetProfileResponse, error) {
+	user, err := s.repo.FindById(ctx, req.UserId)
+	if err != nil {
+		log.Error().Err(err).Any("payload", req).Msg("service::GetProfile - Failed to get user")
+		return nil, err
+	}
+
+	return user, nil
+}
