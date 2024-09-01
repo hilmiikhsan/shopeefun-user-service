@@ -32,6 +32,7 @@ func (h *userHandler) Register(router fiber.Router) {
 	router.Post("/register", h.register)
 	router.Post("/login", h.login)
 	router.Get("/profile", middleware.AuthBearer, h.getProfile)
+	router.Get("/profile/:user_id", middleware.AuthBearer, h.getProfileByUserId)
 }
 
 func (h *userHandler) register(c *fiber.Ctx) error {
@@ -102,6 +103,31 @@ func (h *userHandler) getProfile(c *fiber.Ctx) error {
 	res, err := h.service.GetProfile(ctx, req)
 	if err != nil {
 		log.Error().Err(err).Any("payload", req).Msg("handler::getProfile - Failed to get profile")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.Success(res, ""))
+}
+
+func (h *userHandler) getProfileByUserId(c *fiber.Ctx) error {
+	var (
+		req        = new(entity.GetProfileRequest)
+		ctx        = c.Context()
+		validators = adapter.Adapters.Validator
+	)
+
+	req.UserId = c.Params("user_id")
+
+	if err := validators.Validate(req); err != nil {
+		log.Warn().Err(err).Msg("handler::profileByUserId - Invalid Request")
+		code, errs := errmsg.Errors(err, req)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	res, err := h.service.GetProfile(ctx, req)
+	if err != nil {
+		log.Error().Err(err).Any("payload", req).Msg("handler::profileByUserId - Failed to get profile")
 		code, errs := errmsg.Errors[error](err)
 		return c.Status(code).JSON(response.Error(errs))
 	}

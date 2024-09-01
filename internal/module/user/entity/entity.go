@@ -24,7 +24,7 @@ type LoginResponse struct {
 }
 
 type GetProfileRequest struct {
-	UserId string `validate:"validate"`
+	UserId string `validate:"required"`
 }
 
 type GetProfileResponse struct {
