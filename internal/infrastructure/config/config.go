@@ -59,9 +59,10 @@ type Config struct {
 
 	Oauth struct {
 		Google struct {
-			ClientId     string `env:"GOOGLE_CLIENT_ID"`
-			ClientSecret string `env:"GOOGLE_CLIENT_SECRET"`
-			RedirectURL  string `env:"GOOGLE_REDIRECT_URL"`
+			ClientId             string `env:"GOOGLE_CLIENT_ID"`
+			ClientSecret         string `env:"GOOGLE_CLIENT_SECRET"`
+			RedirectURL          string `env:"GOOGLE_REDIRECT_URL"`
+			OauthDefaultPassword string `env:"GOOGLE_OAUTH_DEFAULT_PASSWORD"`
 		}
 	}
 }

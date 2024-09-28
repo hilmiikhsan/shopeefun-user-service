@@ -2,18 +2,27 @@ package repository
 
 const (
 	queryInsertUser = `
-		INSERT INTO users
-		(
-			role_id,
-			email,
-			name,
-			password
-		) VALUES (
-			(SELECT id FROM roles WHERE name = 'end_user'),
-			?, ?, ?
+		WITH inserted_user AS (
+			INSERT INTO users (
+				role_id,
+				email,
+				name,
+				password
+			) VALUES (
+				(SELECT id FROM roles WHERE name = 'end_user'),
+				?, ?, ?
+			)
+			RETURNING id, role_id, name
 		)
-
-		RETURNING id, name
+		SELECT 
+			inserted_user.id, 
+			inserted_user.name, 
+			roles.id AS role_id,
+			roles.name AS role_name
+		FROM 
+			inserted_user
+		JOIN 
+			roles ON roles.id = inserted_user.role_id
 	`
 
 	queryGetUserByEmail = `
@@ -31,7 +40,8 @@ const (
 	queryGetProfile = `
 		SELECT
 			u.id,
-			r.name AS role,
+			r.id AS role_id,
+			r.name AS role_name,
 			u.name,
 			u.email
 		FROM users u

@@ -7,3 +7,18 @@ type UserResult struct {
 	Email    string `db:"email"`
 	Password string `db:"password"`
 }
+
+type RegisterResult struct {
+	Id       string `db:"id"`
+	Name     string `db:"name"`
+	RoleId   string `db:"role_id"`
+	RoleName string `db:"role_name"`
+}
+
+type GetProfileResult struct {
+	Id       string `db:"id"`
+	Name     string `db:"name"`
+	Email    string `db:"email"`
+	RoleId   string `db:"role_id"`
+	RoleName string `db:"role_name"`
+}

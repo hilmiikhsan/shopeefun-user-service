@@ -1,8 +1,16 @@
 package rest
 
 import (
+	"context"
+	"encoding/json"
+	"net/http"
+
+	"github.com/coreos/go-oidc"
 	"github.com/gofiber/fiber/v2"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/adapter"
+	"github.com/hilmiikhsan/shopeefun-user-service/internal/infrastructure/config"
+	integOauth "github.com/hilmiikhsan/shopeefun-user-service/internal/integration/oauth2google"
+	oauth "github.com/hilmiikhsan/shopeefun-user-service/internal/integration/oauth2google/entity"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/middleware"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/entity"
 	"github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/ports"
@@ -14,15 +22,17 @@ import (
 )
 
 type userHandler struct {
-	service ports.UserService
+	service     ports.UserService
+	integration integOauth.Oauth2googleContract
 }
 
-func NewUserHandler() *userHandler {
+func NewUserHandler(oauth integOauth.Oauth2googleContract) *userHandler {
 	var handler = new(userHandler)
 
 	repo := repository.NewUserRepository(adapter.Adapters.ShopeefunPostgres)
-	service := service.NewUserService(repo)
+	service := service.NewUserService(repo, oauth)
 
+	handler.integration = oauth
 	handler.service = service
 
 	return handler
@@ -33,6 +43,9 @@ func (h *userHandler) Register(router fiber.Router) {
 	router.Post("/login", h.login)
 	router.Get("/profile", middleware.AuthBearer, h.getProfile)
 	router.Get("/profile/:user_id", middleware.AuthBearer, h.getProfileByUserId)
+
+	router.Get("/oauth/google/url", h.oauthGoogleUrl)
+	router.Get("/signin/callback", h.callbackSigninGoogle)
 }
 
 func (h *userHandler) register(c *fiber.Ctx) error {
@@ -128,6 +141,71 @@ func (h *userHandler) getProfileByUserId(c *fiber.Ctx) error {
 	res, err := h.service.GetProfile(ctx, req)
 	if err != nil {
 		log.Error().Err(err).Any("payload", req).Msg("handler::profileByUserId - Failed to get profile")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	return c.Status(fiber.StatusOK).JSON(response.Success(res, ""))
+}
+
+func (h *userHandler) oauthGoogleUrl(c *fiber.Ctx) error {
+	return c.Redirect(h.integration.GetUrl("/"), http.StatusTemporaryRedirect)
+}
+
+func (h *userHandler) callbackSigninGoogle(c *fiber.Ctx) error {
+	var (
+		ctx = c.Context()
+	)
+
+	state, code := c.FormValue("state"), c.FormValue("code")
+	if state == "" && code == "" {
+		log.Error().Msg("handler::callbackSigninGoogle - Invalid request")
+		return c.Status(fiber.StatusBadRequest).JSON(response.Error(errmsg.NewCustomErrors(fiber.StatusBadRequest, errmsg.WithMessage("Invalid request"))))
+	}
+
+	token, err := h.integration.Exchange(ctx, code)
+	if err != nil {
+		log.Error().Err(err).Msg("handler::callbackSigninGoogle - Failed to exchange token")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	provider, err := oidc.NewProvider(ctx, "https://accounts.google.com")
+	if err != nil {
+		log.Error().Err(err).Msg("handler::callbackSigninGoogle - Failed to get provider")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	verifier := provider.Verifier(&oidc.Config{
+		ClientID: config.Envs.Oauth.Google.ClientId,
+	})
+
+	_, err = verifier.Verify(context.Background(), token.Extra("id_token").(string))
+	if err != nil {
+		log.Error().Err(err).Msg("handler::callbackSigninGoogle - Failed to verify token")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	result, err := http.Get("https://www.googleapis.com/oauth2/v2/userinfo?access_token=" + token.AccessToken)
+	if err != nil {
+		log.Error().Err(err).Msg("handler::callbackSigninGoogle - Failed to get user info")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+	defer result.Body.Close()
+
+	var userInfo oauth.UserInfoResponse
+	if err := json.NewDecoder(result.Body).Decode(&userInfo); err != nil {
+		log.Error().Err(err).Msg("handler::callbackSigninGoogle - Failed to decode user info")
+		code, errs := errmsg.Errors[error](err)
+		return c.Status(code).JSON(response.Error(errs))
+	}
+
+	res, err := h.service.LoginWithGoogle(ctx, &userInfo)
+	if err != nil {
+		log.Error().Err(err).Any("payload", userInfo).Msg("handler::callbackSigninGoogle - Failed to login with google")
 		code, errs := errmsg.Errors[error](err)
 		return c.Status(code).JSON(response.Error(errs))
 	}

@@ -1,5 +1,7 @@
 package entity
 
+import "github.com/hilmiikhsan/shopeefun-user-service/internal/module/role/entity"
+
 type RegisterRequest struct {
 	Name     string `json:"name" validate:"required,min=3,max=50"`
 	Email    string `json:"email" validate:"required,email"`
@@ -9,8 +11,9 @@ type RegisterRequest struct {
 }
 
 type RegisterResponse struct {
-	Id   string `json:"id"`
-	Name string `json:"name"`
+	Id   string      `json:"id"`
+	Name string      `json:"name"`
+	Role entity.Role `json:"role"`
 }
 
 type LoginRequest struct {
@@ -28,8 +31,8 @@ type GetProfileRequest struct {
 }
 
 type GetProfileResponse struct {
-	Id    string `json:"id" db:"id"`
-	Name  string `json:"name" db:"name"`
-	Email string `json:"email" db:"email"`
-	Role  string `json:"-" db:"role"`
+	Id    string      `json:"id"`
+	Name  string      `json:"name"`
+	Email string      `json:"email"`
+	Role  entity.Role `json:"role"`
 }

@@ -2,6 +2,7 @@ package route
 
 import (
 	"github.com/gofiber/fiber/v2"
+	integration "github.com/hilmiikhsan/shopeefun-user-service/internal/integration/oauth2google"
 	handlerUser "github.com/hilmiikhsan/shopeefun-user-service/internal/module/user/handler/rest"
 	"github.com/hilmiikhsan/shopeefun-user-service/pkg/response"
 	"github.com/rs/zerolog/log"
@@ -9,10 +10,11 @@ import (
 
 func SetupRoutes(app *fiber.App) {
 	var (
-		api = app.Group("/api/v1")
+		api         = app.Group("/api/v1")
+		googleOauth = integration.NewOauth2googleIntegration()
 	)
 
-	handlerUser.NewUserHandler().Register(api)
+	handlerUser.NewUserHandler(googleOauth).Register(api)
 
 	// fallback route
 	app.Use(func(c *fiber.Ctx) error {
